@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QLabel, QHBoxLayout
 )
 from PySide6.QtCore import Qt
+from pyvistaqt import QtInteractor
 
 class LunarSimulation:
     def __init__(self):
@@ -39,23 +40,6 @@ class LunarSimulation:
         moon_texture = pyvista.read_texture("8k_moon.jpg")
         stars_texture = pyvista.read_texture("8k_stars.jpg")
         return moon_texture, stars_texture
-    
-    def setup_plotter(self, moon_texture, stars_texture):
-        pl = pyvista.Plotter()
-
-        pl.add_mesh(self.moon_sphere, texture=moon_texture, smooth_shading=False)
-        pl.add_mesh(self.star_sphere, texture=stars_texture, smooth_shading=False)
-
-        # Set starting camera position at equator of the Moon
-        pl.camera_position = [(0, self.radius * 4, 0), (0, 0, 0), (0, 0, 1)]
-
-        # Set max zoom level
-        pl.camera.zoom(1.5)
-
-        # Set background color to black
-        pl.set_background("black")
-
-        return pl
 
 class LunarSimulator(QWidget):
     def __init__(self):
@@ -64,7 +48,7 @@ class LunarSimulator(QWidget):
         self.moon_radius = 1737400  # Radius of the Moon in meters
 
         self.setWindowTitle("Lunar Orbit Simulator")
-        self.setMinimumSize(400, 200)
+        self.setMinimumSize(800, 600)
         self.init_ui()
 
     def init_ui(self):
@@ -80,20 +64,31 @@ class LunarSimulator(QWidget):
         form_layout.addRow("Eccentricity:", self.eccentricity)
         form_layout.addRow("Inclination (deg):", self.inclination)
 
-        self.run_button = QPushButton("Run Simulation")
-        self.run_button.clicked.connect(self.run_simulation)
+        self.update_button = QPushButton("Update Orbit")
+        self.update_button.clicked.connect(self.update_simulation)
 
         layout.addLayout(form_layout)
-        layout.addWidget(self.run_button)
+        layout.addWidget(self.update_button)
+
+        # Add the PyVista render window
+        self.plotter_widget = QtInteractor(self)
+        layout.addWidget(self.plotter_widget.interactor)
 
         self.setLayout(layout)
+        self.plotter_widget.camera.zoom(1.5)  # Set initial zoom level
+        self.plotter_widget.camera_position = [(0, self.moon_radius * 4, 0), (0, 0, 0), (0, 0, 1)]
 
-    def run_simulation(self):
-        # You can read the parameters here and use them in your simulation
+        # Initial plot
+        self.update_simulation()
+
+    def update_simulation(self):
         a = float(self.semi_major_axis.text())
         e = float(self.eccentricity.text())
         i = float(self.inclination.text())
-        print(f"Running with a={a}, e={e}, i={i}")
+        print(f"Updating with a={a}, e={e}, i={i}")
+
+        # Clear the plotter
+        self.plotter_widget.clear()
 
         # Create the Moon and stars
         self.simulation.create_moon()
@@ -101,8 +96,14 @@ class LunarSimulator(QWidget):
         self.simulation.normalize_points(self.simulation.moon_sphere, self.moon_radius)
         self.simulation.normalize_points(self.simulation.star_sphere, self.moon_radius * 100)
         moon_texture, stars_texture = self.simulation.load_textures()
-        pl = self.simulation.setup_plotter(moon_texture, stars_texture)
-        pl.show()  # This will open the PyVista window
+
+        # Add meshes to the embedded plotter
+        self.plotter_widget.add_mesh(self.simulation.moon_sphere, texture=moon_texture, smooth_shading=False)
+        self.plotter_widget.add_mesh(self.simulation.star_sphere, texture=stars_texture, smooth_shading=False)
+
+        # Set background    
+        self.plotter_widget.camera_position = self.plotter_widget.camera_position
+        self.plotter_widget.set_background("black")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
