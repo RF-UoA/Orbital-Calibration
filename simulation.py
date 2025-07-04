@@ -1,6 +1,11 @@
 import pyvista
 import math
 import numpy as np
+import sys
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QLabel, QHBoxLayout
+)
+from PySide6.QtCore import Qt
 
 class LunarSimulation:
     def __init__(self):
@@ -52,24 +57,55 @@ class LunarSimulation:
 
         return pl
 
-class LunarSimulator():
+class LunarSimulator(QWidget):
     def __init__(self):
+        super().__init__()
         self.simulation = LunarSimulation()
         self.moon_radius = 1737400  # Radius of the Moon in meters
 
-    def run(self):
+        self.setWindowTitle("Lunar Orbit Simulator")
+        self.setMinimumSize(400, 200)
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        form_layout = QFormLayout()
+
+        # Example orbital parameters
+        self.semi_major_axis = QLineEdit("2000000")
+        self.eccentricity = QLineEdit("0.01")
+        self.inclination = QLineEdit("30")
+
+        form_layout.addRow("Semi-major axis (m):", self.semi_major_axis)
+        form_layout.addRow("Eccentricity:", self.eccentricity)
+        form_layout.addRow("Inclination (deg):", self.inclination)
+
+        self.run_button = QPushButton("Run Simulation")
+        self.run_button.clicked.connect(self.run_simulation)
+
+        layout.addLayout(form_layout)
+        layout.addWidget(self.run_button)
+
+        self.setLayout(layout)
+
+    def run_simulation(self):
+        # You can read the parameters here and use them in your simulation
+        a = float(self.semi_major_axis.text())
+        e = float(self.eccentricity.text())
+        i = float(self.inclination.text())
+        print(f"Running with a={a}, e={e}, i={i}")
 
         # Create the Moon and stars
         self.simulation.create_moon()
         self.simulation.create_stars()
-
-        # Normalize points and set up textures
         self.simulation.normalize_points(self.simulation.moon_sphere, self.moon_radius)
         self.simulation.normalize_points(self.simulation.star_sphere, self.moon_radius * 100)
         moon_texture, stars_texture = self.simulation.load_textures()
-
-        # Set up the plotter with textures and camera
         pl = self.simulation.setup_plotter(moon_texture, stars_texture)
-        pl.show()
+        pl.show()  # This will open the PyVista window
 
-LunarSimulator().run()
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = LunarSimulator()
+    window.show()
+    sys.exit(app.exec())
